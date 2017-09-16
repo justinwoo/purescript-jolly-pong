@@ -1,4 +1,4 @@
-module JollyPong  where
+module JollyPong where
 
 import Prelude
 
