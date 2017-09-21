@@ -30,10 +30,9 @@ reducer = combineReducers
   , b: bReducer
   }
 
-state :: MyState
-state =
+initialState :: {a :: Int}
+initialState =
   { a: 1
-  , b: "a"
   }
 
 middleware :: Middleware _ _ _ MyState MyAction
@@ -44,7 +43,7 @@ middleware = Middleware $ \store -> \next -> mkEffFn1 \action -> do
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = do
   enhancer <- applyMiddleware [middleware]
-  store <- createStore reducer state enhancer
+  store <- createStore reducer initialState enhancer
   Dispose dispose <- runEffFn1 store.subscribe $ listener store
   _ <- runEffFn1 store.dispatch $ ActionVariant {type: "asdf"}
   _ <- runEffFn1 store.dispatch $ ActionVariant {type: "asdf"}
@@ -54,5 +53,3 @@ main = do
     listener store = Listener do
       state <- store.getState
       log $ "listener called! state: " <> unsafeStringify state
-
-

@@ -5,19 +5,21 @@ import Prelude
 import Control.Monad.Eff (kind Effect, Eff)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn3, runEffFn1, runEffFn3)
 import Data.Function.Uncurried (Fn2)
-import Data.Monoid (class Monoid)
 import Data.Nullable (Nullable)
 import Type.Prelude (class RowToList)
 import Type.Row (Cons, Nil, kind RowList)
 
+-- | A Redux Store
 type Store e (state :: Type) (action :: Type) =
   { getState :: Eff e state
   , dispatch :: EffFn1 e action Unit
   , subscribe :: EffFn1 e (Listener e) (Dispose e)
   }
 
+-- | A dispose function to unsubscribe from a store
 newtype Dispose e = Dispose (Eff e Unit)
 
+-- | A reducer. Note that the initial state in Redux is actually an `undefined` value
 newtype Reducer state action = Reducer (Fn2 (Nullable state) action state)
 
 newtype Listener e = Listener (Eff e Unit)
@@ -33,11 +35,12 @@ newtype ActionVariant (actionRow :: # Type) = ActionVariant
   { type :: String
   }
 
-createStore :: forall state action e
-   . Reducer state action
-  -> state
+createStore :: forall state initialState trash action e
+   . Union initialState trash state
+  => Reducer {|state} action
+  -> {|initialState}
   -> Enhancer
-  -> Eff e (Store e state action)
+  -> Eff e (Store e {|state} action)
 createStore = runEffFn3 _createStore
 
 applyMiddleware :: forall action state e e' e''
@@ -51,8 +54,8 @@ applyMiddleware = runEffFn1 _applyMiddleware
 combineReducers :: forall reducersRow stateRow actionRow rl
    . RowToList reducersRow rl
   => CombineReducers rl reducersRow stateRow actionRow
-  => { | reducersRow }
-  -> Reducer { | stateRow } (ActionVariant actionRow)
+  => {|reducersRow }
+  -> Reducer {|stateRow } (ActionVariant actionRow)
 combineReducers = _combineReducers
 
 -- class to take the rowlist of reducers record passed in
@@ -81,7 +84,7 @@ foreign import _createStore ::
   forall e state action initialState.
   EffFn3 e
     (Reducer state action)
-    state
+    initialState
     Enhancer
     (Store e state action)
 foreign import _combineReducers ::
