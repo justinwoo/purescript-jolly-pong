@@ -51,8 +51,8 @@ main = do
   dispose
   log "You should add some tests."
   where
-    listener store = Listener $ mkEffFn1 \_ -> do
-      state <- runEffFn1 store.getState unit
+    listener store = Listener do
+      state <- store.getState
       log $ "listener called! state: " <> unsafeStringify state
 
 

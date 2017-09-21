@@ -5,12 +5,13 @@ import Prelude
 import Control.Monad.Eff (kind Effect, Eff)
 import Control.Monad.Eff.Uncurried (EffFn1, EffFn3, runEffFn1, runEffFn3)
 import Data.Function.Uncurried (Fn2)
+import Data.Monoid (class Monoid)
 import Data.Nullable (Nullable)
 import Type.Prelude (class RowToList)
 import Type.Row (Cons, Nil, kind RowList)
 
 type Store e (state :: Type) (action :: Type) =
-  { getState :: EffFn1 e Unit state
+  { getState :: Eff e state
   , dispatch :: EffFn1 e action Unit
   , subscribe :: EffFn1 e (Listener e) (Dispose e)
   }
@@ -19,7 +20,7 @@ newtype Dispose e = Dispose (Eff e Unit)
 
 newtype Reducer state action = Reducer (Fn2 (Nullable state) action state)
 
-newtype Listener e = Listener (EffFn1 e Unit Unit)
+newtype Listener e = Listener (Eff e Unit)
 
 newtype Middleware e1 e2 e3 state action = Middleware
   (Store e1 state action -> EffFn1 e2 action action -> EffFn1 e3 action action)
