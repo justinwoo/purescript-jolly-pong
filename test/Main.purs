@@ -35,7 +35,7 @@ initialState =
   { a: 1
   }
 
-middleware :: Middleware _ _ _ MyState MyAction
+middleware :: Middleware _ MyState MyAction
 middleware = Middleware $ \store -> \next -> mkEffFn1 \action -> do
   log $ "action called: " <> unsafeStringify action
   runEffFn1 next action

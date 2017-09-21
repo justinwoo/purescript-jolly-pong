@@ -9,32 +9,35 @@ import Data.Nullable (Nullable)
 import Type.Prelude (class RowToList)
 import Type.Row (Cons, Nil, kind RowList)
 
--- | A Redux Store
+-- | A Redux Store.
 type Store e (state :: Type) (action :: Type) =
   { getState :: Eff e state
   , dispatch :: EffFn1 e action Unit
   , subscribe :: EffFn1 e (Listener e) (Dispose e)
   }
 
--- | A dispose function to unsubscribe from a store
+-- | A dispose function to unsubscribe from a store.
 newtype Dispose e = Dispose (Eff e Unit)
 
--- | A reducer. Note that the initial state in Redux is actually an `undefined` value
+-- | A reducer. Note that the initial state in Redux is actually an `undefined` value.
 newtype Reducer state action = Reducer (Fn2 (Nullable state) action state)
 
+-- | A listener for Redux store subscriptions.
 newtype Listener e = Listener (Eff e Unit)
 
-newtype Middleware e1 e2 e3 state action = Middleware
-  (Store e1 state action -> EffFn1 e2 action action -> EffFn1 e3 action action)
+-- | Middleware for Redux.
+newtype Middleware e state action = Middleware
+  (Store e state action -> EffFn1 e action action -> EffFn1 e action action)
 
--- an action variant that is meant to be converted to whatever the
--- user needs. while this form is runtime compatible,
--- users should use libraries like purescript-variant
--- and decode this variant into Variant as needed.
+-- | an action variant that is meant to be converted to whatever the
+-- | user needs. while this form is runtime compatible,
+-- | users should use libraries like purescript-variant
+-- | and decode this variant into Variant as needed.
 newtype ActionVariant (actionRow :: # Type) = ActionVariant
   { type :: String
   }
 
+-- | Create a store using the reducer, a subrow of the state, and enhancers.
 createStore :: forall state initialState trash action e
    . Union initialState trash state
   => Reducer {|state} action
@@ -43,14 +46,15 @@ createStore :: forall state initialState trash action e
   -> Eff e (Store e {|state} action)
 createStore = runEffFn3 _createStore
 
-applyMiddleware :: forall action state e e' e''
-   . Array (Middleware e e' e'' state action)
+-- | Apply middleware.
+applyMiddleware :: forall action state e
+   . Array (Middleware e state action)
   -> Eff e Enhancer
 applyMiddleware = runEffFn1 _applyMiddleware
 
--- combine reducers from a record of reducers
--- produces a correctly typed state row
--- users are expected to use the action variant as needed
+-- | combine reducers from a record of reducers
+-- | produces a correctly typed state row
+-- | users are expected to use the action variant as needed
 combineReducers :: forall reducersRow stateRow actionRow rl
    . RowToList reducersRow rl
   => CombineReducers rl reducersRow stateRow actionRow
@@ -58,8 +62,8 @@ combineReducers :: forall reducersRow stateRow actionRow rl
   -> Reducer {|stateRow } (ActionVariant actionRow)
 combineReducers = _combineReducers
 
--- class to take the rowlist of reducers record passed in
--- and prepare the state record row and a row of actions to be handled
+-- | class to take the rowlist of reducers record passed in
+-- | and prepare the state record row and a row of actions to be handled
 class CombineReducers
   (rl :: RowList)
   (row :: # Type)
