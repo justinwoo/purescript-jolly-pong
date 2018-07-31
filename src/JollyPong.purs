@@ -2,32 +2,33 @@ module JollyPong where
 
 import Prelude
 
-import Control.Monad.Eff (kind Effect, Eff)
-import Control.Monad.Eff.Uncurried (EffFn1, EffFn3, runEffFn1, runEffFn3)
-import Data.Function.Uncurried (Fn2)
+import Data.Function.Uncurried as FU
 import Data.Nullable (Nullable)
+import Effect (Effect)
+import Effect.Uncurried as EU
+import Prim.Row as Row
 import Type.Prelude (class RowToList)
 import Type.Row (Cons, Nil, kind RowList)
 
 -- | A Redux Store.
-type Store e (state :: Type) (action :: Type) =
-  { getState :: Eff e state
-  , dispatch :: EffFn1 e action Unit
-  , subscribe :: EffFn1 e (Listener e) (Dispose e)
+type Store (state :: Type) (action :: Type) =
+  { getState :: Effect state
+  , dispatch :: EU.EffectFn1 action Unit
+  , subscribe :: EU.EffectFn1 Listener Dispose
   }
 
 -- | A dispose function to unsubscribe from a store.
-newtype Dispose e = Dispose (Eff e Unit)
+newtype Dispose = Dispose (Effect Unit)
 
 -- | A reducer. Note that the initial state in Redux is actually an `undefined` value.
-newtype Reducer state action = Reducer (Fn2 (Nullable state) action state)
+newtype Reducer state action = Reducer (FU.Fn2 (Nullable state) action state)
 
 -- | A listener for Redux store subscriptions.
-newtype Listener e = Listener (Eff e Unit)
+newtype Listener = Listener (Effect Unit)
 
 -- | Middleware for Redux.
-newtype Middleware e state action = Middleware
-  (Store e state action -> EffFn1 e action action -> EffFn1 e action action)
+newtype Middleware state action = Middleware
+  (Store state action -> EU.EffectFn1 action action -> EU.EffectFn1 action action)
 
 -- | an action variant that is meant to be converted to whatever the
 -- | user needs. while this form is runtime compatible,
@@ -38,19 +39,19 @@ newtype ActionVariant (actionRow :: # Type) = ActionVariant
   }
 
 -- | Create a store using the reducer, a subrow of the state, and enhancers.
-createStore :: forall state initialState trash action e
-   . Union initialState trash state
+createStore :: forall state initialState state' action
+   . Row.Union initialState state' state
   => Reducer {|state} action
   -> {|initialState}
   -> Enhancer
-  -> Eff e (Store e {|state} action)
-createStore = runEffFn3 _createStore
+  -> Effect (Store {|state} action)
+createStore = EU.runEffectFn3 _createStore
 
 -- | Apply middleware.
-applyMiddleware :: forall action state e
-   . Array (Middleware e state action)
-  -> Eff e Enhancer
-applyMiddleware = runEffFn1 _applyMiddleware
+applyMiddleware :: forall action state
+   . Array (Middleware state action)
+  -> Effect Enhancer
+applyMiddleware = EU.runEffectFn1 _applyMiddleware
 
 -- | combine reducers from a record of reducers
 -- | produces a correctly typed state row
@@ -73,8 +74,8 @@ class CombineReducers
 
 instance combineReducersCons ::
   ( CombineReducers tail row state' action'
-  , RowCons name stateA state' state
-  , Union actionA action' action
+  , Row.Cons name stateA state' state
+  , Row.Union actionA action' action
   ) => CombineReducers
     (Cons name (Reducer stateA (ActionVariant actionA)) tail)
     row
@@ -85,18 +86,17 @@ instance combineReducersNil :: CombineReducers Nil row () ()
 
 foreign import data Enhancer :: Type
 foreign import _createStore ::
-  forall e state action initialState.
-  EffFn3 e
+  forall state action initialState.
+  EU.EffectFn3
     (Reducer state action)
     initialState
     Enhancer
-    (Store e state action)
+    (Store state action)
 foreign import _combineReducers ::
   forall reducers state action
    . reducers
   -> Reducer state action
 
 foreign import _applyMiddleware ::
-  forall e middleware.
-  EffFn1 e (Array middleware) Enhancer
-
+  forall middleware.
+  EU.EffectFn1 (Array middleware) Enhancer

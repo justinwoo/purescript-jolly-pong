@@ -2,12 +2,12 @@ module Test.Main where
 
 import Prelude
 
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Control.Monad.Eff.Uncurried (mkEffFn1, runEffFn1)
 import Data.Function.Uncurried (mkFn2)
 import Data.Maybe (fromMaybe)
 import Data.Nullable (toMaybe)
+import Effect (Effect)
+import Effect.Console (log)
+import Effect.Uncurried as EU
 import Global.Unsafe (unsafeStringify)
 import JollyPong (ActionVariant(..), Dispose(..), Listener(Listener), Middleware(Middleware), Reducer(Reducer), applyMiddleware, combineReducers, createStore)
 
@@ -35,20 +35,19 @@ initialState =
   { a: 1
   }
 
-middleware :: Middleware _ MyState MyAction
-middleware = Middleware $ \store -> \next -> mkEffFn1 \action -> do
+middleware :: Middleware MyState MyAction
+middleware = Middleware $ \store -> \next -> EU.mkEffectFn1 \action -> do
   log $ "action called: " <> unsafeStringify action
-  runEffFn1 next action
+  EU.runEffectFn1 next action
 
-main :: forall e. Eff (console :: CONSOLE | e) Unit
+main :: Effect Unit
 main = do
   enhancer <- applyMiddleware [middleware]
   store <- createStore reducer initialState enhancer
-  Dispose dispose <- runEffFn1 store.subscribe $ listener store
-  _ <- runEffFn1 store.dispatch $ ActionVariant {type: "asdf"}
-  _ <- runEffFn1 store.dispatch $ ActionVariant {type: "asdf"}
+  Dispose dispose <- EU.runEffectFn1 store.subscribe $ listener store
+  _ <- EU.runEffectFn1 store.dispatch $ ActionVariant {type: "asdf"}
+  _ <- EU.runEffectFn1 store.dispatch $ ActionVariant {type: "asdf"}
   dispose
-  log "You should add some tests."
   where
     listener store = Listener do
       state <- store.getState
